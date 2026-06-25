@@ -54,7 +54,7 @@ export default function Admin() {
   const [code, setCode] = useState('');
   const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'services' | 'models' | 'promotions' | 'videos' | 'testimonials' | 'contact' | 'security'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'services' | 'models' | 'promotions' | 'videos' | 'testimonials' | 'contact' | 'security' | 'github'>('general');
   const [edited, setEdited] = useState<SiteData>(data);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -461,6 +461,7 @@ export default function Admin() {
                 { id: 'testimonials', label: 'Témoignages', icon: MessageSquare },
                 { id: 'contact', label: 'Contact', icon: Phone },
                 { id: 'security', label: 'Sécurité', icon: Shield },
+                { id: 'github', label: 'GitHub', icon: Github },
               ].map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -1092,6 +1093,19 @@ export default function Admin() {
                 onChange={(newCode) => setEdited((prev) => ({ ...prev, adminCode: newCode }))}
               />
             )}
+
+            {/* GitHub Tab */}
+            {activeTab === 'github' && (
+              <GitHubTab
+                token={githubInputToken}
+                setToken={setGithubInputToken}
+                connected={githubReady}
+                owner={githubOwner}
+                connecting={githubConnecting}
+                onConnect={connectGitHub}
+                onDisconnect={() => setGithubToken(null)}
+              />
+            )}
           </main>
         </div>
       </div>
@@ -1314,6 +1328,101 @@ function PhotoManager({ title, description, images, onAdd, onUpdate, onRemove, o
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface GitHubTabProps {
+  token: string;
+  setToken: (token: string) => void;
+  connected: boolean;
+  owner: string | null;
+  connecting: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}
+
+function GitHubTab({ token, setToken, connected, owner, connecting, onConnect, onDisconnect }: GitHubTabProps) {
+  const [showToken, setShowToken] = useState(false);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-2xl font-bold flex items-center gap-3">
+          <Github className="w-7 h-7 text-[#d4af37]" />
+          Configuration GitHub
+        </h2>
+        <p className="text-white/60 mt-2">
+          Connectez un compte GitHub pour synchroniser les données et stocker les photos/vidéos en ligne.
+        </p>
+      </div>
+
+      {connected ? (
+        <div className="bg-green-400/10 border border-green-400/20 rounded-2xl p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <CheckCircle className="w-8 h-8 text-green-400" />
+            <div>
+              <h3 className="font-semibold text-white">Connecté à GitHub</h3>
+              <p className="text-white/60 text-sm">Compte : @{owner}</p>
+            </div>
+          </div>
+          <p className="text-white/70 text-sm mb-4">
+            Les modifications seront sauvegardées sur le repository public <strong>marleine-koula-hair-data</strong>.
+            Tous les visiteurs verront les mêmes données.
+          </p>
+          <button
+            onClick={onDisconnect}
+            className="px-4 py-2 rounded-lg bg-red-400/10 hover:bg-red-400/20 text-red-400 transition-colors text-sm font-medium"
+          >
+            Déconnecter GitHub
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 max-w-xl">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2">Token GitHub</label>
+              <div className="relative">
+                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                <input
+                  type={showToken ? 'text' : 'password'}
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  className="w-full bg-white/5 border border-white/20 rounded-xl pl-12 pr-12 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-[#d4af37]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken(!showToken)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+                >
+                  {showToken ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-4">
+              <p className="text-yellow-400 text-sm">
+                <strong>Comment créer un token :</strong>
+              </p>
+              <ol className="text-yellow-400/80 text-sm mt-2 space-y-1 list-decimal list-inside">
+                <li>Allez sur github.com/settings/tokens</li>
+                <li>Cliquez sur "Generate new token (classic)"</li>
+                <li>Cochez la permission "repo"</li>
+                <li>Générez et copiez le token</li>
+              </ol>
+            </div>
+
+            <button
+              onClick={onConnect}
+              disabled={connecting || !token.trim()}
+              className="w-full btn-gold py-3 rounded-xl font-semibold disabled:opacity-70"
+            >
+              {connecting ? 'Connexion en cours...' : 'Connecter GitHub'}
+            </button>
+          </div>
         </div>
       )}
     </div>
