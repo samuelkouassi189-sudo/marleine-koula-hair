@@ -455,7 +455,7 @@ export default function Admin() {
               {[
                 { id: 'general', label: 'Général', icon: Home },
                 { id: 'services', label: 'Prestations', icon: Sparkles },
-                { id: 'models', label: 'Modèles', icon: ImageIcon },
+                { id: 'models', label: 'Galerie photo', icon: ImageIcon },
                 { id: 'promotions', label: 'Promotions', icon: Percent },
                 { id: 'videos', label: 'Vidéos', icon: VideoIcon },
                 { id: 'testimonials', label: 'Témoignages', icon: MessageSquare },
@@ -650,10 +650,10 @@ export default function Admin() {
               </div>
             )}
 
-            {/* Models Tab */}
+            {/* Gallery Tab */}
             {activeTab === 'models' && (
               <PhotoManager
-                title="Modèles de coiffures"
+                title="Galerie photos"
                 description="Photos d'inspiration et modèles proposés au salon."
                 images={edited.models}
                 onAdd={addModel}
