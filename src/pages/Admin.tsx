@@ -40,6 +40,7 @@ import {
   User,
   Shield,
   KeyRound,
+  Github,
   Camera,
   Percent,
 } from 'lucide-react';
@@ -48,7 +49,7 @@ const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB
 
 export default function Admin() {
   const navigate = useNavigate();
-  const { data, updateData, loading, firebaseReady } = useSite();
+  const { data, updateData, loading, firebaseReady, githubReady, githubOwner, githubToken, setGithubToken } = useSite();
   const [authenticated, setAuthenticated] = useState(false);
   const [code, setCode] = useState('');
   const [showCode, setShowCode] = useState(false);
@@ -63,12 +64,32 @@ export default function Admin() {
     setEdited(data);
   }, [data]);
 
+  const [githubInputToken, setGithubInputToken] = useState(githubToken || '');
+  const [githubConnecting, setGithubConnecting] = useState(false);
+
   const uploadFile = async (file: File, folder: string): Promise<string> => {
+    if (githubReady && githubToken && githubOwner) {
+      const { uploadBlobFile } = await import('../lib/github');
+      return uploadBlobFile(githubToken, githubOwner, file, folder);
+    }
     if (firebaseReady) {
       const path = `${folder}/${Date.now()}-${file.name}`;
       return uploadFileToStorage(file, path);
     }
     return fileToBase64(file);
+  };
+
+  const connectGitHub = async () => {
+    setGithubConnecting(true);
+    setError('');
+    const ok = await setGithubToken(githubInputToken.trim());
+    setGithubConnecting(false);
+    if (ok) {
+      setMessage('Connexion GitHub réussie !');
+      setTimeout(() => setMessage(''), 3000);
+    } else {
+      setError('Token GitHub invalide. Vérifiez le token et réessayez.');
+    }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -385,9 +406,13 @@ export default function Admin() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className={`hidden md:flex items-center gap-2 text-sm px-4 py-2 rounded-full ${firebaseReady ? 'bg-green-400/10 text-green-400' : 'bg-yellow-400/10 text-yellow-400'}`}>
-                <span className={`w-2 h-2 rounded-full ${firebaseReady ? 'bg-green-400' : 'bg-yellow-400'}`} />
-                {firebaseReady ? 'Synchronisation en ligne active' : 'Mode local (non synchronisé)'}
+              <div className={`hidden md:flex items-center gap-2 text-sm px-4 py-2 rounded-full ${githubReady || firebaseReady ? 'bg-green-400/10 text-green-400' : 'bg-yellow-400/10 text-yellow-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${githubReady || firebaseReady ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                {githubReady
+                  ? `Sync GitHub (${githubOwner})`
+                  : firebaseReady
+                  ? 'Synchronisation en ligne active'
+                  : 'Mode local (non synchronisé)'}
               </div>
               {message && (
                 <div className="hidden md:flex items-center gap-2 text-green-400 text-sm bg-green-400/10 px-4 py-2 rounded-full">
@@ -457,9 +482,11 @@ export default function Admin() {
 
             <div className="mt-8 p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
               <p className="text-sm text-white/60">
-                {firebaseReady
+                {githubReady
+                  ? `Synchronisation GitHub active sur le compte @${githubOwner}. Les modifications sont visibles par tous.`
+                  : firebaseReady
                   ? 'Les modifications sont synchronisées en ligne et visibles par tous les visiteurs.'
-                  : 'Mode local : les modifications ne sont visibles que sur ce navigateur. Configurez Firebase pour synchroniser.'}
+                  : 'Mode local : les modifications ne sont visibles que sur ce navigateur. Configurez GitHub ou Firebase pour synchroniser.'}
               </p>
               <button
                 onClick={exportData}

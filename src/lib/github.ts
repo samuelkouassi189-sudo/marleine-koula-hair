@@ -1,104 +1,139 @@
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN || '';
-const GITHUB_OWNER = import.meta.env.VITE_GITHUB_OWNER || '';
-const GITHUB_REPO = import.meta.env.VITE_GITHUB_REPO || '';
-const DATA_FILE = 'site-data.json';
+const GITHUB_API = 'https://api.github.com';
+const REPO_OWNER_PLACEHOLDER = 'OWNER';
+const REPO_NAME = 'marleine-koula-hair-data';
+const DATA_PATH = 'site-data.json';
 
-export function isGitHubConfigured(): boolean {
-  return Boolean(GITHUB_TOKEN && GITHUB_OWNER && GITHUB_REPO);
+function getHeaders(token: string) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
 }
 
-export async function loadSiteDataFromGitHub(): Promise<any | null> {
-  if (!isGitHubConfigured()) return null;
+export function getRepoName(): string {
+  return REPO_NAME;
+}
 
+export function getDataRawUrl(owner: string): string {
+  return `https://raw.githubusercontent.com/${owner}/${REPO_NAME}/main/${DATA_PATH}`;
+}
+
+export async function getAuthenticatedUser(token: string): Promise<{ login: string; id: number } | null> {
   try {
-    const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${DATA_FILE}?t=${Date.now()}`;
-    const response = await fetch(rawUrl);
-    if (!response.ok) return null;
-    return await response.json();
-  } catch (err) {
-    console.error('GitHub load error:', err);
+    const res = await fetch(`${GITHUB_API}/user`, { headers: getHeaders(token) });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
     return null;
   }
 }
 
-export async function saveSiteDataToGitHub(data: any): Promise<void> {
-  if (!isGitHubConfigured()) {
-    throw new Error('GitHub n\'est pas configuré. Vérifiez le fichier .env.');
-  }
-
-  const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE}`;
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-
-  // Get current file SHA if it exists
-  let sha: string | undefined;
-  try {
-    const getResponse = await fetch(apiUrl, {
-      headers: { Authorization: `token ${GITHUB_TOKEN}` },
-    });
-    if (getResponse.ok) {
-      const fileData = await getResponse.json();
-      sha = fileData.sha;
-    }
-  } catch {
-    // File might not exist yet
-  }
-
-  const body: Record<string, string> = {
-    message: 'Mise à jour des données du site via admin',
-    content,
-  };
-  if (sha) body.sha = sha;
-
-  const response = await fetch(apiUrl, {
-    method: 'PUT',
-    headers: {
-      Authorization: `token ${GITHUB_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
+export async function ensureRepoExists(token: string, owner: string): Promise<boolean> {
+  const checkRes = await fetch(`${GITHUB_API}/repos/${owner}/${REPO_NAME}`, {
+    headers: getHeaders(token),
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Erreur lors de la sauvegarde sur GitHub');
-  }
-}
+  if (checkRes.status === 200) return true;
 
-export async function uploadFileToGitHub(file: File, folder: string): Promise<string> {
-  if (!isGitHubConfigured()) {
-    throw new Error('GitHub n\'est pas configuré.');
-  }
-
-  // Pour les fichiers, on les encode en base64 et on les stocke dans le repo
-  const path = `assets/${folder}/${Date.now()}-${file.name}`;
-  const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
-
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
-  const response = await fetch(apiUrl, {
-    method: 'PUT',
-    headers: {
-      Authorization: `token ${GITHUB_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
+  // Create repo
+  const createRes = await fetch(`${GITHUB_API}/user/repos`, {
+    method: 'POST',
+    headers: getHeaders(token),
     body: JSON.stringify({
-      message: `Upload ${file.name}`,
-      content: base64,
+      name: REPO_NAME,
+      description: 'Données et médias du site Marleine Koula Hair',
+      private: false,
+      auto_init: true,
     }),
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Erreur lors de l\'upload sur GitHub');
+  return createRes.ok;
+}
+
+export async function getFileSha(token: string, owner: string, path: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${GITHUB_API}/repos/${owner}/${REPO_NAME}/contents/${path}`, {
+      headers: getHeaders(token),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.sha || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function uploadFileToGitHub(
+  token: string,
+  owner: string,
+  path: string,
+  content: string | ArrayBuffer,
+  message: string
+): Promise<string> {
+  await ensureRepoExists(token, owner);
+
+  const isBase64 = typeof content === 'string';
+  const base64Content = isBase64 ? content : arrayBufferToBase64(content);
+  const sha = await getFileSha(token, owner, path);
+
+  const body: Record<string, string> = {
+    message,
+    content: base64Content,
+    branch: 'main',
+  };
+  if (sha) body.sha = sha;
+
+  const res = await fetch(`${GITHUB_API}/repos/${owner}/${REPO_NAME}/contents/${path}`, {
+    method: 'PUT',
+    headers: getHeaders(token),
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`GitHub upload error: ${err}`);
   }
 
-  return `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${path}`;
+  const data = await res.json();
+  return data.content.download_url;
+}
+
+export async function uploadBlobFile(
+  token: string,
+  owner: string,
+  file: File,
+  folder: string
+): Promise<string> {
+  await ensureRepoExists(token, owner);
+  const path = `${folder}/${Date.now()}-${file.name}`;
+  const buffer = await file.arrayBuffer();
+  const url = await uploadFileToGitHub(token, owner, path, buffer, `Upload ${file.name}`);
+  return url;
+}
+
+export async function fetchSiteDataFromGitHub(owner: string): Promise<any | null> {
+  try {
+    const res = await fetch(getDataRawUrl(owner), { cache: 'no-cache' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function saveSiteDataToGitHub(token: string, owner: string, data: any): Promise<void> {
+  await ensureRepoExists(token, owner);
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  await uploadFileToGitHub(token, owner, DATA_PATH, content, 'Mise à jour des données du site');
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
