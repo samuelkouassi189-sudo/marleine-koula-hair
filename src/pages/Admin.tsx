@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSite } from '../context/SiteContext';
 import { isFirebaseConfigured, uploadFileToStorage } from '../lib/firebase';
-import { isGitHubConfigured, uploadFileToGitHub } from '../lib/github';
 import {
   SiteData,
   Service,
   GalleryImage,
+  Promotion,
   Video,
   Testimonial,
   generateId,
@@ -48,12 +48,12 @@ const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB
 
 export default function Admin() {
   const navigate = useNavigate();
-  const { data, updateData, loading, firebaseReady, githubReady, syncMethod } = useSite();
+  const { data, updateData, loading, firebaseReady } = useSite();
   const [authenticated, setAuthenticated] = useState(false);
   const [code, setCode] = useState('');
   const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'services' | 'models' | 'gallery' | 'promotions' | 'videos' | 'testimonials' | 'contact' | 'security'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'services' | 'models' | 'promotions' | 'videos' | 'testimonials' | 'contact' | 'security'>('general');
   const [edited, setEdited] = useState<SiteData>(data);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -67,9 +67,6 @@ export default function Admin() {
     if (firebaseReady) {
       const path = `${folder}/${Date.now()}-${file.name}`;
       return uploadFileToStorage(file, path);
-    }
-    if (githubReady) {
-      return uploadFileToGitHub(file, folder);
     }
     return fileToBase64(file);
   };
@@ -164,33 +161,6 @@ export default function Admin() {
     updateService(id, 'image', url);
   };
 
-  // Gallery
-  const addGalleryImage = () => {
-    const newImage: GalleryImage = {
-      id: generateId(),
-      src: '/images/gallery-1.jpg',
-      title: 'Nouvelle photo',
-      category: 'Tresses',
-    };
-    setEdited((prev) => ({ ...prev, gallery: [...prev.gallery, newImage] }));
-  };
-
-  const updateGalleryImage = (id: string, field: keyof GalleryImage, value: string) => {
-    setEdited((prev) => ({
-      ...prev,
-      gallery: prev.gallery.map((img) => (img.id === id ? { ...img, [field]: value } : img)),
-    }));
-  };
-
-  const removeGalleryImage = (id: string) => {
-    setEdited((prev) => ({ ...prev, gallery: prev.gallery.filter((img) => img.id !== id) }));
-  };
-
-  const handleGalleryImage = async (id: string, file: File) => {
-    const url = await uploadFile(file, 'gallery');
-    updateGalleryImage(id, 'src', url);
-  };
-
   // Models
   const addModel = () => {
     const newImage: GalleryImage = { id: generateId(), src: '/images/gallery-1.jpg', title: 'Nouveau modèle', category: 'Tresses' };
@@ -215,24 +185,33 @@ export default function Admin() {
 
   // Promotions
   const addPromotion = () => {
-    const newImage: GalleryImage = { id: generateId(), src: '/images/gallery-1.jpg', title: 'Nouvelle promo', category: 'Offre' };
-    setEdited((prev) => ({ ...prev, promotions: [...prev.promotions, newImage] }));
+    const newPromo: Promotion = {
+      id: generateId(),
+      title: 'Nouvelle promotion',
+      description: 'Description de l\'offre',
+      oldPrice: '',
+      newPrice: '0 FCFA',
+      image: '/images/gallery-1.jpg',
+      active: true,
+      badge: 'Promo',
+    };
+    setEdited((prev) => ({ ...prev, promotions: [...prev.promotions, newPromo] }));
   };
 
-  const updatePromotion = (id: string, field: keyof GalleryImage, value: string) => {
+  const updatePromotion = (id: string, field: keyof Promotion, value: string | boolean) => {
     setEdited((prev) => ({
       ...prev,
-      promotions: prev.promotions.map((img) => (img.id === id ? { ...img, [field]: value } : img)),
+      promotions: prev.promotions.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
     }));
   };
 
   const removePromotion = (id: string) => {
-    setEdited((prev) => ({ ...prev, promotions: prev.promotions.filter((img) => img.id !== id) }));
+    setEdited((prev) => ({ ...prev, promotions: prev.promotions.filter((p) => p.id !== id) }));
   };
 
   const handlePromotionImage = async (id: string, file: File) => {
     const url = await uploadFile(file, 'promotions');
-    updatePromotion(id, 'src', url);
+    updatePromotion(id, 'image', url);
   };
 
   // Videos
@@ -406,11 +385,9 @@ export default function Admin() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className={`hidden md:flex items-center gap-2 text-sm px-4 py-2 rounded-full ${syncMethod !== 'local' ? 'bg-green-400/10 text-green-400' : 'bg-yellow-400/10 text-yellow-400'}`}>
-                <span className={`w-2 h-2 rounded-full ${syncMethod !== 'local' ? 'bg-green-400' : 'bg-yellow-400'}`} />
-                {syncMethod === 'firebase' && 'Synchronisation Firebase active'}
-                {syncMethod === 'github' && 'Synchronisation GitHub active'}
-                {syncMethod === 'local' && 'Mode local (non synchronisé)'}
+              <div className={`hidden md:flex items-center gap-2 text-sm px-4 py-2 rounded-full ${firebaseReady ? 'bg-green-400/10 text-green-400' : 'bg-yellow-400/10 text-yellow-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${firebaseReady ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                {firebaseReady ? 'Synchronisation en ligne active' : 'Mode local (non synchronisé)'}
               </div>
               {message && (
                 <div className="hidden md:flex items-center gap-2 text-green-400 text-sm bg-green-400/10 px-4 py-2 rounded-full">
@@ -454,7 +431,6 @@ export default function Admin() {
                 { id: 'general', label: 'Général', icon: Home },
                 { id: 'services', label: 'Prestations', icon: Sparkles },
                 { id: 'models', label: 'Modèles', icon: ImageIcon },
-                { id: 'gallery', label: 'Galerie', icon: Camera },
                 { id: 'promotions', label: 'Promotions', icon: Percent },
                 { id: 'videos', label: 'Vidéos', icon: VideoIcon },
                 { id: 'testimonials', label: 'Témoignages', icon: MessageSquare },
@@ -481,9 +457,9 @@ export default function Admin() {
 
             <div className="mt-8 p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
               <p className="text-sm text-white/60">
-                {syncMethod !== 'local'
+                {firebaseReady
                   ? 'Les modifications sont synchronisées en ligne et visibles par tous les visiteurs.'
-                  : 'Mode local : les modifications ne sont visibles que sur ce navigateur. Configurez Firebase ou GitHub pour synchroniser.'}
+                  : 'Mode local : les modifications ne sont visibles que sur ce navigateur. Configurez Firebase pour synchroniser.'}
               </p>
               <button
                 onClick={exportData}
@@ -659,30 +635,124 @@ export default function Admin() {
               />
             )}
 
-            {/* Gallery Tab */}
-            {activeTab === 'gallery' && (
-              <PhotoManager
-                title="Galerie photos"
-                description="Photos réalisées sur vos clientes."
-                images={edited.gallery}
-                onAdd={addGalleryImage}
-                onUpdate={updateGalleryImage}
-                onRemove={removeGalleryImage}
-                onImageUpload={handleGalleryImage}
-              />
-            )}
-
             {/* Promotions Tab */}
             {activeTab === 'promotions' && (
-              <PhotoManager
-                title="Promotions & Actions"
-                description="Offres spéciales et promotions du moment."
-                images={edited.promotions}
-                onAdd={addPromotion}
-                onUpdate={updatePromotion}
-                onRemove={removePromotion}
-                onImageUpload={handlePromotionImage}
-              />
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-display text-2xl font-bold">Promotions &amp; Offres</h2>
+                    <p className="text-white/60 text-sm mt-1">Offres spéciales et promotions du moment.</p>
+                  </div>
+                  <button onClick={addPromotion} className="btn-gold px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
+                    <Plus className="w-4 h-4" /> Ajouter
+                  </button>
+                </div>
+
+                {edited.promotions.length === 0 ? (
+                  <div className="bg-white/5 border border-white/10 border-dashed rounded-2xl p-8 text-center">
+                    <Percent className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                    <p className="text-white/50">Aucune promotion pour le moment.</p>
+                    <button onClick={addPromotion} className="mt-4 text-[#d4af37] hover:text-[#f3d77b] text-sm font-medium">
+                      Ajouter une promotion
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {edited.promotions.map((promo) => (
+                      <div key={promo.id} className={`bg-white/5 border rounded-2xl p-4 space-y-3 ${promo.active ? 'border-[#d4af37]/30' : 'border-white/10 opacity-60'}`}>
+                        <div className="relative">
+                          <img src={promo.image} alt="" className="w-full h-40 object-cover rounded-xl border border-white/10" />
+                          {promo.badge && (
+                            <span className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-[#d4af37] text-[#0a0a0a] text-xs font-bold">
+                              {promo.badge}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Titre</label>
+                          <input
+                            type="text"
+                            value={promo.title}
+                            onChange={(e) => updatePromotion(promo.id, 'title', e.target.value)}
+                            className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#d4af37]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">Description</label>
+                          <textarea
+                            value={promo.description}
+                            onChange={(e) => updatePromotion(promo.id, 'description', e.target.value)}
+                            rows={2}
+                            className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#d4af37]"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-white/50 mb-1">Ancien prix</label>
+                            <input
+                              type="text"
+                              value={promo.oldPrice || ''}
+                              onChange={(e) => updatePromotion(promo.id, 'oldPrice', e.target.value)}
+                              placeholder="ex: 15 000 FCFA"
+                              className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#d4af37]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-white/50 mb-1">Nouveau prix</label>
+                            <input
+                              type="text"
+                              value={promo.newPrice}
+                              onChange={(e) => updatePromotion(promo.id, 'newPrice', e.target.value)}
+                              placeholder="ex: 10 000 FCFA"
+                              className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#d4af37]"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-white/50 mb-1">Badge</label>
+                            <input
+                              type="text"
+                              value={promo.badge || ''}
+                              onChange={(e) => updatePromotion(promo.id, 'badge', e.target.value)}
+                              placeholder="Promo, -30%..."
+                              className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#d4af37]"
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={promo.active}
+                                onChange={(e) => updatePromotion(promo.id, 'active', e.target.checked)}
+                                className="w-4 h-4 rounded border-white/20 bg-white/5 text-[#d4af37] focus:ring-[#d4af37]"
+                              />
+                              <span className="text-sm text-white/70">Active</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <label className="flex-1 cursor-pointer px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm text-center">
+                            Changer photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => e.target.files?.[0] && handlePromotionImage(promo.id, e.target.files[0])}
+                            />
+                          </label>
+                          <button
+                            onClick={() => removePromotion(promo.id)}
+                            className="px-3 py-2 rounded-lg bg-red-400/10 hover:bg-red-400/20 text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Videos Tab */}

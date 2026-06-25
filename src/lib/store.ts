@@ -27,6 +27,17 @@ export interface Video {
   type: 'url' | 'file';
 }
 
+export interface Promotion {
+  id: string;
+  title: string;
+  description: string;
+  oldPrice?: string;
+  newPrice: string;
+  image: string;
+  active: boolean;
+  badge?: string;
+}
+
 export interface Testimonial {
   id: string;
   name: string;
@@ -45,8 +56,7 @@ export interface SiteData {
   };
   services: Service[];
   models: GalleryImage[];
-  gallery: GalleryImage[];
-  promotions: GalleryImage[];
+  promotions: Promotion[];
   videos: Video[];
   testimonials: Testimonial[];
   contact: {
@@ -110,8 +120,38 @@ export const defaultSiteData: SiteData = {
     { id: '5', src: '/images/gallery-5.jpg', title: 'Twists élégants', category: 'Twists' },
     { id: '6', src: '/images/gallery-6.jpg', title: 'Style glamour', category: 'Glamour' },
   ],
-  gallery: [],
-  promotions: [],
+  promotions: [
+    {
+      id: '1',
+      title: 'Pack Mariage',
+      description: 'Coiffure + maquillage + soin capillaire pour votre grand jour.',
+      oldPrice: '50 000 FCFA',
+      newPrice: '35 000 FCFA',
+      image: '/images/gallery-2.jpg',
+      active: true,
+      badge: '-30%',
+    },
+    {
+      id: '2',
+      title: 'Tresses Box Braids',
+      description: 'Profitez de nos box braids premium à prix réduit cette semaine.',
+      oldPrice: '15 000 FCFA',
+      newPrice: '10 000 FCFA',
+      image: '/images/gallery-1.jpg',
+      active: true,
+      badge: 'Promo',
+    },
+    {
+      id: '3',
+      title: 'Soin Profond',
+      description: 'Traitement nourrissant pour des cheveux brillants et en bonne santé.',
+      oldPrice: '8 000 FCFA',
+      newPrice: '5 000 FCFA',
+      image: '/images/gallery-4.jpg',
+      active: true,
+      badge: 'Offre',
+    },
+  ],
   videos: [
     {
       id: '1',
@@ -231,8 +271,7 @@ export function normalizeSiteData(data: Partial<SiteData>): SiteData {
     hero: { ...defaultSiteData.hero, ...data.hero },
     services: data.services?.length ? data.services : defaultSiteData.services,
     models: data.models?.length ? data.models : defaultSiteData.models,
-    gallery: data.gallery ?? defaultSiteData.gallery,
-    promotions: data.promotions ?? defaultSiteData.promotions,
+    promotions: data.promotions?.length ? data.promotions : defaultSiteData.promotions,
     videos: data.videos?.length ? data.videos : defaultSiteData.videos,
     testimonials: data.testimonials?.length ? data.testimonials : defaultSiteData.testimonials,
     contact: { ...defaultSiteData.contact, ...data.contact },

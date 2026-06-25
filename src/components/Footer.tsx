@@ -80,7 +80,8 @@ export default function Footer() {
               {[
                 { label: 'Accueil', href: '#accueil' },
                 { label: 'Nos prestations', href: '#prestations' },
-                { label: 'Galerie', href: '#galerie' },
+                { label: 'Promotions', href: '#promotions' },
+                { label: 'Modèles', href: '#modeles' },
                 { label: 'Vidéos', href: '#videos' },
                 { label: 'Contact', href: '#contact' },
               ].map((link) => (

@@ -6,7 +6,8 @@ import { useSite } from '../context/SiteContext';
 const navLinks = [
   { label: 'Accueil', href: '#accueil' },
   { label: 'Prestations', href: '#prestations' },
-  { label: 'Galerie', href: '#galerie' },
+  { label: 'Promotions', href: '#promotions' },
+  { label: 'Modèles', href: '#modeles' },
   { label: 'Vidéos', href: '#videos' },
   { label: 'Contact', href: '#contact' },
 ];

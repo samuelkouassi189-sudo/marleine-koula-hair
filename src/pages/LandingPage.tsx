@@ -1,10 +1,9 @@
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import Services from '../components/Services';
+import Promotions from '../components/Promotions';
 import WhyUs from '../components/WhyUs';
 import Models from '../components/Models';
-import Gallery from '../components/Gallery';
-import Promotions from '../components/Promotions';
 import Videos from '../components/Videos';
 import Testimonials from '../components/Testimonials';
 import BookingCTA from '../components/BookingCTA';
@@ -19,10 +18,9 @@ export default function LandingPage() {
       <main>
         <Hero />
         <Services />
-        <WhyUs />
         <Promotions />
+        <WhyUs />
         <Models />
-        <Gallery />
         <Videos />
         <Testimonials />
         <BookingCTA />
